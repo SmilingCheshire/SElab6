@@ -1,0 +1,69 @@
+def calculate_hydration_needs(weight_kg: float, height_m: float, activity_level: str = "mid") -> dict:
+    """
+    Computes daily hydration needs for a patient based on weight, height, and activity level.
+    
+    This is a simplified calculation for demonstration purposes only.
+    DO NOT USE FOR CLINICAL DECISIONS.
+    
+    Parameters:
+        weight_kg (float): Patient's weight in kilograms (must be positive)
+        height_m (float): Patient's height in meters (must be positive)
+        activity_level (str): Activity level - one of "low", "mid", or "high" (default: "mid")
+    
+    Returns:
+        dict: A dictionary containing:
+            - "BMI" (float): Body Mass Index rounded to 2 decimal places
+            - "hydration_L" (float): Recommended daily hydration in liters rounded to 2 decimal places
+    
+    Raises:
+        ValueError: If weight or height is not positive, or if activity_level is invalid
+    
+    Notes:
+        - Does NOT account for fever, hot climate, or individual medical conditions
+        - BMI calculation: weight(kg) / height(m)²
+        - Base hydration: 30 mL per kg of body weight per day
+        - Activity multipliers: low=0.9, mid=1.0, high=1.2
+        - This function is for DEMONSTRATION ONLY
+    
+    Example:
+        >>> calculate_hydration_needs(70, 1.75, "mid")
+        {'BMI': 22.86, 'hydration_L': 2.1}
+    """
+    
+    # Validate inputs
+    if weight_kg <= 0:
+        raise ValueError("Weight must be positive")
+    
+    if height_m <= 0:
+        raise ValueError("Height must be positive")
+    
+    # Valid activity levels
+    valid_activity_levels = ["low", "mid", "high"]
+    if activity_level not in valid_activity_levels:
+        raise ValueError(f"Activity level must be one of {valid_activity_levels}, got '{activity_level}'")
+    
+    # Calculate BMI
+    bmi = weight_kg / (height_m ** 2)
+    
+    # Base hydration constant: 30 mL per kg of body weight
+    BASE_HYDRATION_ML_PER_KG = 30
+    # Convert to liters: divide by 1000
+    LITERS_PER_ML = 1000
+    
+    base_hydration = BASE_HYDRATION_ML_PER_KG * weight_kg / LITERS_PER_ML
+    
+    # Activity level multipliers
+    ACTIVITY_MULTIPLIERS = {
+        "low": 0.9,
+        "mid": 1.0,
+        "high": 1.2
+    }
+    
+    activity_factor = ACTIVITY_MULTIPLIERS[activity_level]
+    
+    daily_liters = base_hydration * activity_factor
+    
+    return {
+        "BMI": round(bmi, 2),
+        "hydration_L": round(daily_liters, 2)
+    }
