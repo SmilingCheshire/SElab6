@@ -8,74 +8,158 @@ import java.io.*;
 import java.io.IOException;
 import java.util.*;
 
-public class Manager2 {
+/**
+ * RespiratoryStatusManager handles patient respiratory status classification
+ * based on oxygen saturation and respiration rate readings.
+ */
+public class RespiratoryStatusManager {
 
     private static List<String> LOGS = new ArrayList<>();
-
-    private static final double MIN_WEIGHT = 50;
-    private static final double MAX_WEIGHT = 120;
-
+    
+    // Weight validation thresholds in kilograms
+    private static final double MIN_WEIGHT = 0.1;
+    private static final double MAX_WEIGHT = 500;
+    
     private static boolean debug = false;
+    
+    private String lastStatus = null;
 
-    private String last_stat = null;
 
-
-    public void method1(Patient pt, int rr, double o2) {
-
-        if (pt.w < MIN_WEIGHT || pt.w > MAX_WEIGHT) {
+    /**
+     * Classifies patient's respiratory status based on O2 saturation and respiration rate.
+     * 
+     * @param patient The patient to evaluate
+     * @param respirationRate Respiration rate in breaths per minute
+     * @param oxygenSaturation Oxygen saturation percentage (0-100)
+     * @return String representing the respiratory status: "LOW O2", "FAST BREATHING", or "OK"
+     */
+    public String classifyRespiratoryStatus(Patient patient, int respirationRate, double oxygenSaturation) {
+        
+        // Validate patient weight
+        if (patient.weight < MIN_WEIGHT || patient.weight > MAX_WEIGHT) {
             System.out.println("Suspicious weight!");
-            LOGS.add("Invalid weight for " + pt.patient_name);
+            LOGS.add("Invalid weight for " + patient.name);
         }
-
-        if (o2 < 88) {
-            last_stat = "LOW O2";
-        } else if (rr > 15) {
-            last_stat = "FAST BREATHING";
+        
+        // Classify based on oxygen saturation first, then respiration rate
+        if (oxygenSaturation < 88) {
+            lastStatus = "LOW O2";
+        } else if (respirationRate > 15) {
+            lastStatus = "FAST BREATHING";
         } else {
-            last_stat = "OK";
+            lastStatus = "OK";
         }
-
-        LOGS.add("Processed " + pt.patient_name);
+        
+        LOGS.add("Processed " + patient.name);
+        return lastStatus;
     }
 
 
-    public int method2(Patient p, int rr, boolean print) {
-
-        int cls = -999;
-
-        if (p.w <= 0 || p.w > 1000) {
-            LOGS.add("Bad weight: " + p.w);
-            return cls;
+    /**
+     * Classifies breathing frequency based on respiration rate.
+     * 
+     * @param patient The patient to evaluate
+     * @param respirationRate Respiration rate in breaths per minute
+     * @param shouldPrint Whether to print the classification result
+     * @return int classification code:
+     *         0 = Normal (12-20 breaths/min)
+     *         1 = Normal (6-12 breaths/min) 
+     *         2 = Suspicious (< 6 breaths/min)
+     *         3 = Fast (> 20 breaths/min)
+     *         -999 = Invalid data
+     */
+    public int classifyBreathingFrequency(Patient patient, int respirationRate, boolean shouldPrint) {
+        
+        int classificationCode = -999;
+        
+        // Validate patient weight
+        if (patient.weight <= 0 || patient.weight > MAX_WEIGHT) {
+            LOGS.add("Bad weight: " + patient.weight);
+            return classificationCode;
         }
-
-        if (rr > 20) {
-            cls = 3;
-        } else if (rr > 12) {
-            cls = 1;
-        } else if (rr < 6) {
-            cls = 2;
+        
+        // Classify respiration rate according to requirements
+        // Requirements specify: normal (12-20), suspicious (<6), slow (6-12), fast (>20)
+        if (respirationRate > 20) {
+            classificationCode = 3; // Fast breathing
+        } else if (respirationRate >= 12) {
+            classificationCode = 0; // Normal breathing
+        } else if (respirationRate >= 6) {
+            classificationCode = 1; // Slow breathing
         } else {
-            cls = 0;
+            classificationCode = 2; // Suspicious breathing
         }
-
-        if (print) {
-            System.out.println("Class result=" + cls + " for " + p.patient_name);
+        
+        if (shouldPrint) {
+            String classification = getClassificationDescription(classificationCode);
+            System.out.println("Breathing classification: " + classification + " for patient " + patient.name);
         }
-
-        return cls;
+        
+        return classificationCode;
     }
-
+    
+    /**
+     * Converts classification code to human-readable description.
+     */
+    private String getClassificationDescription(int code) {
+        switch (code) {
+            case 0: return "Normal (12-20 br/min)";
+            case 1: return "Slow (6-12 br/min)";
+            case 2: return "Suspicious (< 6 br/min)";
+            case 3: return "Fast (> 20 br/min)";
+            default: return "Invalid";
+        }
+    }
 }
 
 
-class Patient {
-    public String patient_name;
-    public double w;
-    public String cond;
-
+/**
+ * Represents a patient with basic health information.
+ */
+public class Patient {
+    private String name;
+    private double weight;
+    private String condition;
+    
+    /**
+     * Creates a new Patient instance.
+     * 
+     * @param name Patient's name
+     * @param weight Patient's weight in kilograms
+     * @param condition Patient's medical condition
+     */
     public Patient(String name, double weight, String condition) {
-        this.patient_name = name;
-        this.w = weight;
-        this.cond = condition;
+        this.name = name;
+        this.weight = weight;
+        this.condition = condition;
+    }
+    
+    // Getters
+    public String getName() {
+        return name;
+    }
+    
+    public double getWeight() {
+        return weight;
+    }
+    
+    public String getCondition() {
+        return condition;
+    }
+    
+    // Setters with validation
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public void setWeight(double weight) {
+        if (weight <= 0) {
+            throw new IllegalArgumentException("Weight must be positive");
+        }
+        this.weight = weight;
+    }
+    
+    public void setCondition(String condition) {
+        this.condition = condition;
     }
 }

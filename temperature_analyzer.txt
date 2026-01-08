@@ -1,108 +1,181 @@
-# The temperature_analyzer script implements the following requirements:
-# 1/ The system should accept temperature readings in Celsius or Fahrenheit.
-# 2/ The system should convert the temperature to Celsius for analysis (if provided in Fahrenheit).
-# 3/ The system should classify the patient's status based on body temperature and age-dependent thresholds. 
-# 4/ The system should support displaying the status (if enabled) and logging it to a file (if enabled).
- 
- 
+"""
+Temperature Analyzer Module
+
+This module provides functionality to analyze patient body temperature readings
+and classify patient status based on temperature and age-dependent thresholds.
+
+Requirements implemented:
+1. Accept temperature readings in Celsius or Fahrenheit
+2. Convert temperature to Celsius for analysis (if provided in Fahrenheit)
+3. Classify patient status based on body temperature and age-dependent thresholds
+4. Support displaying status and logging to file (if enabled)
+"""
+
+# Module-level state (consider refactoring to class-based approach in production)
 last_status = None
-tmp_cache = None
+temp_cache = None
 unit_used_globally = "C"
 debug_enabled = False
 
-LOW_FEVER_THRESHOLD = 38
-HIGH_FEVER_THRESHOLD = 39.4
-BABY_FEVER_THRESHOLD = 37.4
+# Temperature thresholds in Celsius
+LOW_FEVER_THRESHOLD_CELSIUS = 38.0
+HIGH_FEVER_THRESHOLD_CELSIUS = 39.4
+INFANT_FEVER_THRESHOLD_CELSIUS = 37.4
 
 
-def convert_to_celsius(temp):
-    global tmp_cache
-
-    if temp < -100 or temp > 300:
+def convert_fahrenheit_to_celsius(temp_fahrenheit: float) -> float:
+    """
+    Converts temperature from Fahrenheit to Celsius.
+    
+    Parameters:
+        temp_fahrenheit (float): Temperature in Fahrenheit
+    
+    Returns:
+        float: Temperature in Celsius
+    
+    Raises:
+        Warning: Prints warning if temperature is outside realistic range
+    """
+    global temp_cache
+    
+    # Realistic temperature range check
+    if temp_fahrenheit < -100 or temp_fahrenheit > 300:
         print("Warning: Unrealistic temperature detected.")
+    
+    celsius = (temp_fahrenheit - 32) * 5/9
+    
+    temp_cache = celsius
+    return celsius
 
-    c = (temp - 32) * 5/9
 
-    tmp_cache = c
-    return c
-
-
-def has_fever(temp, scale="C"):
+def has_fever(temp: float, scale: str = "C") -> bool:
+    """
+    Determines if a temperature reading indicates fever.
+    
+    Parameters:
+        temp (float): Temperature reading
+        scale (str): Temperature scale - "C" for Celsius or "F" for Fahrenheit
+    
+    Returns:
+        bool: True if fever is present, False otherwise, None on error
+    """
     try:
         if scale == "C":
-            fever = temp > LOW_FEVER_THRESHOLD
+            fever = temp > LOW_FEVER_THRESHOLD_CELSIUS
+        elif scale == "F":
+            celsius = (temp - 32) * 5/9
+            fever = celsius > LOW_FEVER_THRESHOLD_CELSIUS
         else:
-            c = (temp - 32) * 5/9
-            fever = c > LOW_FEVER_THRESHOLD
-
+            return None
+        
         return fever
-    except:
+    except Exception:
         return None
 
 
-def analyze_patient(temp, age, verbose=0, emergency_mode=False, log=False):
+def analyze_patient_temperature(temp: float, age: int, temp_scale: str = "F", 
+                                verbose: int = 0, emergency_mode: bool = False, 
+                                log: bool = False) -> str:
+    """
+    Analyzes patient temperature and classifies their status.
+    
+    Parameters:
+        temp (float): Temperature reading
+        age (int): Patient age in years
+        temp_scale (str): Temperature scale - "C" for Celsius, "F" for Fahrenheit (default: "F")
+        verbose (int): Verbosity level (0=none, 1-3=increasing detail)
+        emergency_mode (bool): If True, checks for hypothermia in Celsius readings
+        log (bool): If True, logs results to temp_log.txt
+    
+    Returns:
+        str: Patient status - "FEVER", "ALMOST FEVER", "NORMAL", or "HYPOTHERMIA?"
+    
+    Note:
+        - Infants (age < 3): Fever threshold is 37.4°C
+        - Others: Fever threshold is 39.4°C
+        - Emergency mode only accepts Celsius temperatures for hypothermia check
+    """
     global last_status
-
-    if emergency_mode and temp < 30:
+    
+    # Emergency mode hypothermia check (only for Celsius readings)
+    if emergency_mode and temp_scale == "C" and temp < 30:
         last_status = "HYPOTHERMIA?"
         return last_status
-
-    temp = convert_to_celsius(temp)
-
+    
+    # Convert to Celsius if necessary
+    if temp_scale == "F":
+        temp_celsius = convert_fahrenheit_to_celsius(temp)
+    elif temp_scale == "C":
+        temp_celsius = temp
+        temp_cache = temp
+    else:
+        raise ValueError(f"Invalid temperature scale: {temp_scale}. Must be 'C' or 'F'")
+    
+    # Determine appropriate fever threshold based on age
     if age < 3:
-        threshold = BABY_FEVER_THRESHOLD
+        threshold = INFANT_FEVER_THRESHOLD_CELSIUS
     else:
-        threshold = HIGH_FEVER_THRESHOLD
-
-    if temp > threshold:
+        threshold = HIGH_FEVER_THRESHOLD_CELSIUS
+    
+    # Classify temperature status
+    if temp_celsius > threshold:
         status = "FEVER"
+    elif verbose > 2 and temp_celsius > threshold - 0.2:
+        status = "ALMOST FEVER"
     else:
-        if verbose > 2 and temp > threshold - 0.2:
-            status = "ALMOST FEVER"
-        else:
-            status = "NORMAL"
-
+        status = "NORMAL"
+    
     last_status = status
-
+    
+    # Log results if requested
     if log:
         try:
             with open("temp_log.txt", "a") as f:
-                f.write(f"TEMP={temp}, AGE={age}, STATUS={status}\n")
-        except:
-            pass
-
-    return status
-
-    print("Patient status:", status)
+                f.write(f"TEMP={temp_celsius:.1f}C, AGE={age}, STATUS={status}\n")
+        except IOError as e:
+            print(f"Warning: Could not write to log file: {e}")
+    
     return status
 
 
-def get_status_report(include_temp=False, format="long"):
-    global last_status, tmp_cache
-
+def get_status_report(include_temp: bool = False, format: str = "long") -> dict:
+    """
+    Retrieves the last analyzed patient status.
+    
+    Parameters:
+        include_temp (bool): If True, includes cached temperature in response
+        format (str): Output format - "long" for full text, "code" for abbreviated status
+    
+    Returns:
+        dict or str: Status report in requested format
+    """
+    global last_status, temp_cache
+    
     if include_temp:
-        return {"status": last_status, "temp_cache": tmp_cache}
+        return {"status": last_status, "temp_cache": temp_cache}
     elif format == "code":
         return last_status[:2] if last_status else None
     else:
         return f"Current status: {last_status}"
 
 
+# Example usage
 if __name__ == "__main__":
-
-    temp = 109.7
-    age = 5
-
-    print("Analyzing temperature:", temp)
-
-    result = analyze_patient(
-        temp,
-        age,
+    
+    temperature_fahrenheit = 103.5  # Fahrenheit
+    patient_age = 5  # years
+    
+    print(f"Analyzing temperature: {temperature_fahrenheit}°F")
+    
+    result = analyze_patient_temperature(
+        temp=temperature_fahrenheit,
+        age=patient_age,
+        temp_scale="F",
         verbose=3,
         emergency_mode=False,
         log=True
     )
-
-    print("Result:", result)
-    print("Last status:", last_status)
-    print("Status report:", get_status_report(include_temp=True))
+    
+    print(f"Result: {result}")
+    print(f"Last status: {last_status}")
+    print(f"Status report: {get_status_report(include_temp=True)}")
