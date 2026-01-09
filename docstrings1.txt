@@ -1,0 +1,37 @@
+def calc_medication_dose(weight_kg: float, age_years: int, drug_code: str, emergency: bool = False) -> float:
+    """
+    Calculates medication dose based on patient parameters.
+
+    Args:
+        weight_kg (float): Patient body weight in kilograms.
+        age_years (int): Patient age in years.
+        drug_code (str): Drug identifier (e.g. "DRUG_A", "DRUG_B").
+        emergency (bool): Flag indicating emergency dose adjustment.
+
+    Returns:
+        float: Calculated dose in milligrams.
+    """
+    if weight_kg <= 0:
+        raise ValueError("weight_kg must be positive")
+
+    if age_years < 0:
+        raise ValueError("age_years cannot be negative")
+
+    dose_per_kg = {
+        "DRUG_A": 2.0,   # fictional mg/kg
+        "DRUG_B": 0.5,   # fictional mg/kg
+        "DRUG_C": 1.2    # fictional mg/kg
+    }
+
+    if drug_code not in dose_per_kg:
+        raise ValueError(f"Unknown drug_code: {drug_code}")
+
+    base_dose_mg = weight_kg * dose_per_kg[drug_code]
+
+    if age_years < 12:
+        base_dose_mg *= 0.8
+
+    if emergency:
+        base_dose_mg *= 1.2
+
+    return round(base_dose_mg, 2)
