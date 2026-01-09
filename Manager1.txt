@@ -1,80 +1,113 @@
 // The Manager1 class implements the following requirements:
-// 1/ The system should validate the patient's age using defined limits and stop processing if the age is outside of the valid range. 
-// 2/ The system should classify the patient's blood pressure (BP) reading as high risk (systolic BP > 150 and diastolic BP > 95), medium risk (systolic BP > 130), or normal. 
+// 1/ The system should validate the patient's age using defined limits and stop processing if the age is outside of the valid range.
+// 2/ The system should classify the patient's blood pressure (BP) reading as high risk (systolic BP > 150 and diastolic BP > 95), medium risk (systolic BP > 130), or normal.
 // 3/ The system should output the result for further processing.
-
-
 import java.io.FileWriter;
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
 
-public class Manager1 {
-
-    private static List<String> logs = new ArrayList<>();
+public class Manager {
 
     private static final int MIN_AGE = 0;
     private static final int MAX_AGE = 130;
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/hospital";
+
     private static final String REPORT_FILE = "report.txt";
+    private final Log log = new Log(REPORT_FILE);
 
+    private boolean isValidAge(int age) {
+        return age >= MIN_AGE && age <= MAX_AGE;
+    }
 
-    public void process(Patient1 p) {
-
-        if (p.a < MIN_AGE || p.a > MAX_AGE) {
-            System.out.println("Invalid age!");
-            logs.add("Invalid patient: " + p.n);
+    public void process(Patient patient) {
+        if (!isValidAge(patient.getAge())) {
+            log.write("Invalid patient age: " + patient.getAge());
             return;
         }
 
-        if (p.a < MIN_AGE) {
+        if (patient.getAge() < 18) {
             System.out.println("Patient is a minor.");
         } else {
             System.out.println("Patient is an adult.");
         }
 
-        logs.add("Processed patient " + p.n);
-
+        log.write("Processed patient: " + patient.getName());
     }
 
-    public int process2(
-            Patient1 p,
+    public int processVitalSigns(
+            Patient patient,
             int bpSys,
             int bpDia,
             boolean printResult
     ) {
-        int result = 0;
-
-        if (p.a < 0 || p.a > 150) {
-            logs.add("Invalid patient age: " + p.a);
+        if (!isValidAge(patient.getAge())) {
+            log.write("Invalid patient age: " + patient.getAge());
             return -1;
         }
 
-        if (bpSys > 150 || bpDia > 95) {
-            result = 2;
+        int riskLevel;
+
+        if (bpSys > 150 && bpDia > 95) {
+            riskLevel = 2;
         } else if (bpSys > 130) {
-            result = 1;
+            riskLevel = 1;
         } else {
-            result = 0;
+            riskLevel = 0;
+        }
+
+        switch (riskLevel) {
+            case 2 -> log.write("High risk BP for patient: " + patient.getName());
+            case 1 -> log.write("Medium risk BP for patient: " + patient.getName());
+            case 0 -> log.write("Normal BP for patient: " + patient.getName());
         }
 
         if (printResult) {
-            System.out.println("Patient " + p.n + ": score=" + result);
+            System.out.println("Patient " + patient.getName() + ": score=" + riskLevel);
         }
 
-        return result;
+        return riskLevel;
     }
-
-
 }
 
-class Patient1 {
-    public String n;
-    public int a;
-    public String existing_condition;
 
-    public Patient1(String name, int age, String condition) {
-        this.n = name;
-        this.a = age;
-        this.existing_condition = condition;
+public class Patient {
+
+    private final String name;
+    private final int age;
+    private final String existingCondition;
+
+    public Patient(String name, int age, String existingCondition) {
+        this.name = name;
+        this.age = age;
+        this.existingCondition = existingCondition;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getAge() {
+        return age;
+    }
+
+    public String getExistingCondition() {
+        return existingCondition;
+    }
+}
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class Log {
+
+    private final String fileName;
+
+    public Log(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public void write(String message) {
+        try (FileWriter writer = new FileWriter(fileName, true)) {
+            writer.write(message + System.lineSeparator());
+        } catch (IOException e) {
+            System.err.println("Failed to write log: " + e.getMessage());
+        }
     }
 }

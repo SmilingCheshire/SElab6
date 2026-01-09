@@ -1,39 +1,37 @@
-def calcMed(w, AGE, code, urgent=False):
+def calc_medication_dose(weight_kg: float, age_years: int, drug_code: str, emergency: bool = False) -> float:
     """
-    Calculates medication dose based on weight.
+    Calculates medication dose based on patient parameters.
 
-    PARAMS:
-        weight_kg: float - patient body mass in kg
-        age: years
-        drug_name (str) name of drug: "amox", "ibup", etc.
-        emergency - optional flag for EMERGENCY USE ONLY dose
-    Returns: dose in mg
+    Args:
+        weight_kg (float): Patient body weight in kilograms.
+        age_years (int): Patient age in years.
+        drug_code (str): Drug identifier (e.g. "DRUG_A", "DRUG_B").
+        emergency (bool): Flag indicating emergency dose adjustment.
 
-    Notes:
-    - THIS FUNCTION DOES NOT CHECK FOR ALLERGIES!!!
-    - Based on hospital guidelines 2021 (TODO: update to 2025)
-    - If weight is negative it returns None (!!!)
+    Returns:
+        float: Calculated dose in milligrams.
     """
-
-    if w <= 0:
+    if weight_kg <= 0:
         raise ValueError("weight_kg must be positive")
 
-    if AGE < 0:
+    if age_years < 0:
         raise ValueError("age_years cannot be negative")
 
-    dpk = {
+    dose_per_kg = {
         "DRUG_A": 2.0,   # fictional mg/kg
         "DRUG_B": 0.5,   # fictional mg/kg
         "DRUG_C": 1.2    # fictional mg/kg
     }
 
-    if code not in dpk:
-        raise ValueError(f"Unknown drug_code: {code}")
+    if drug_code not in dose_per_kg:
+        raise ValueError(f"Unknown drug_code: {drug_code}")
 
-    bd = w * dpk[code]
+    base_dose_mg = weight_kg * dose_per_kg[drug_code]
 
+    if age_years < 12:
+        base_dose_mg *= 0.8
 
-    if AGE < 12:
-        bd *= 0.8
+    if emergency:
+        base_dose_mg *= 1.2
 
-    return round(bd, 2)
+    return round(base_dose_mg, 2)
